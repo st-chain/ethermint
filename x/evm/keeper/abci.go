@@ -16,6 +16,7 @@
 package keeper
 
 import (
+	"github.com/evmos/ethermint/utils"
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -26,6 +27,11 @@ import (
 // BeginBlock sets the sdk Context and EIP155 chain id to the Keeper.
 func (k *Keeper) BeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock) {
 	k.WithChainID(ctx)
+
+	if utils.IsEthermintDevChain(ctx) {
+		// trigger VFBC registration on Ethermint devnet for development purpose
+		_ = k.DeployVirtualFrontierBankContractForAllBankDenomMetadataRecords(ctx, nil)
+	}
 }
 
 // EndBlock also retrieves the bloom filter value from the transient store and commits it to the

@@ -123,6 +123,7 @@ import (
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
+	evmclient "github.com/evmos/ethermint/x/evm/client"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/evmos/ethermint/x/evm/vm/geth"
@@ -164,6 +165,8 @@ var (
 		gov.NewAppModuleBasic([]govclient.ProposalHandler{
 			paramsclient.ProposalHandler, distrclient.ProposalHandler, upgradeclient.LegacyProposalHandler, upgradeclient.LegacyCancelProposalHandler,
 			ibcclientclient.UpdateClientProposalHandler, ibcclientclient.UpgradeProposalHandler,
+			// evm proposal handler
+			evmclient.UpdateVirtualFrontierBankContractProposalHandler,
 		}),
 		params.AppModuleBasic{},
 		crisis.AppModuleBasic{},
@@ -182,14 +185,15 @@ var (
 
 	// module account permissions
 	maccPerms = map[string][]string{
-		authtypes.FeeCollectorName:     nil,
-		distrtypes.ModuleName:          nil,
-		minttypes.ModuleName:           {authtypes.Minter},
-		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
-		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		govtypes.ModuleName:            {authtypes.Burner},
-		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
+		authtypes.FeeCollectorName:                         nil,
+		distrtypes.ModuleName:                              nil,
+		minttypes.ModuleName:                               {authtypes.Minter},
+		stakingtypes.BondedPoolName:                        {authtypes.Burner, authtypes.Staking},
+		stakingtypes.NotBondedPoolName:                     {authtypes.Burner, authtypes.Staking},
+		govtypes.ModuleName:                                {authtypes.Burner},
+		ibctransfertypes.ModuleName:                        {authtypes.Minter, authtypes.Burner},
+		evmtypes.ModuleName:                                {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
+		evmtypes.ModuleVirtualFrontierContractDeployerName: nil,
 	}
 
 	// module accounts that are allowed to receive tokens
@@ -435,7 +439,8 @@ func NewEthermintApp(
 		AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
-		AddRoute(ibchost.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
+		AddRoute(ibchost.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
+		AddRoute(evmtypes.RouterKey, evm.NewEvmProposalHandler(app.EvmKeeper))
 	govConfig := govtypes.DefaultConfig()
 	/*
 		Example of setting gov params:
@@ -508,7 +513,7 @@ func NewEthermintApp(
 		transferModule,
 		// Ethermint app modules
 		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketSs),
-		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, evmSs),
+		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, app.BankKeeper, evmSs),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
