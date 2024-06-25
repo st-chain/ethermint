@@ -2,9 +2,11 @@ package ante_test
 
 import (
 	"fmt"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"math/big"
 	"time"
 
-	abci "github.com/tendermint/tendermint/abci/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -226,6 +228,19 @@ func (suite *AnteTestSuite) TestRejectDeliverMsgsInAuthz() {
 	_, testAddresses, err := generatePrivKeyAddressPairs(10)
 	suite.Require().NoError(err)
 
+	msgEthereumTx := evmtypes.NewTx(
+		big.NewInt(9000), // chain-id
+		0,                // nonce
+		nil,              // to
+		nil,              // amount
+		100_000,          // gas limit
+		nil,              // gas price
+		suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx), // gas fee cap
+		big.NewInt(1),          // gas tip cap
+		nil,                    // input
+		&ethtypes.AccessList{}, // access list
+	)
+
 	testcases := []struct {
 		name         string
 		msgs         []sdk.Msg
@@ -270,7 +285,7 @@ func (suite *AnteTestSuite) TestRejectDeliverMsgsInAuthz() {
 					testAddresses[1],
 					[]sdk.Msg{
 						createMsgSend(testAddresses),
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
@@ -283,7 +298,7 @@ func (suite *AnteTestSuite) TestRejectDeliverMsgsInAuthz() {
 					testAddresses[1],
 					2,
 					[]sdk.Msg{
-						&evmtypes.MsgEthereumTx{},
+						msgEthereumTx,
 					},
 				),
 			},
@@ -324,6 +339,7 @@ func (suite *AnteTestSuite) TestRejectDeliverMsgsInAuthz() {
 			txEncoder := suite.clientCtx.TxConfig.TxEncoder()
 			bz, err := txEncoder(tx)
 			suite.Require().NoError(err)
+			suite.Require().NotEmpty(bz)
 
 			resCheckTx := suite.app.CheckTx(
 				abci.RequestCheckTx{
@@ -331,14 +347,14 @@ func (suite *AnteTestSuite) TestRejectDeliverMsgsInAuthz() {
 					Type: abci.CheckTxType_New,
 				},
 			)
-			suite.Require().Equal(resCheckTx.Code, tc.expectedCode, resCheckTx.Log)
+			suite.Require().Equal(tc.expectedCode, resCheckTx.Code, resCheckTx.Log)
 
 			resDeliverTx := suite.app.DeliverTx(
 				abci.RequestDeliverTx{
 					Tx: bz,
 				},
 			)
-			suite.Require().Equal(resDeliverTx.Code, tc.expectedCode, resDeliverTx.Log)
+			suite.Require().Equal(tc.expectedCode, resDeliverTx.Code, resDeliverTx.Log)
 		})
 	}
 }
