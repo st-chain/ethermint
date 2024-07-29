@@ -162,9 +162,8 @@ func (b *Backend) SendRawTransaction(data hexutil.Bytes) (common.Hash, error) {
 	}
 
 	txHash := ethereumTx.AsTransaction().Hash()
-	b.logger.Debug("rwa:", txHash.Hex())
+
 	syncCtx := b.clientCtx.WithBroadcastMode(flags.BroadcastSync)
-	// sync p2p
 	rsp, err := syncCtx.BroadcastTx(txBytes)
 	if rsp != nil && rsp.Code != 0 {
 		err = errorsmod.ABCIError(rsp.Codespace, rsp.Code, rsp.RawLog)

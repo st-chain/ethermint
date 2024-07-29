@@ -428,7 +428,6 @@ func (msg *MsgEthereumTx) BuildTx(b client.TxBuilder, evmDenom string) (signing.
 	msg.From = ""
 
 	err = builder.SetMsgs(msg)
-	//builder.SetSignatures
 	if err != nil {
 		return nil, err
 	}

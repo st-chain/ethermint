@@ -40,6 +40,8 @@ func InitGenesis(
 	bankKeeper types.BankKeeper,
 	data types.GenesisState,
 ) []abci.ValidatorUpdate {
+
+	// Enable evm Create code
 	if utils.IsOneOfDymensionChains(ctx) && data.Params.EnableCreate {
 		panic(fmt.Errorf("enable create is not allowed on Dymension chains"))
 	}
