@@ -17,6 +17,7 @@ package keeper
 
 import (
 	"fmt"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"math/big"
 
 	sdkmath "cosmossdk.io/math"
@@ -89,6 +90,10 @@ func (k *Keeper) SetBalance(ctx sdk.Context, addr common.Address, amount *big.In
 	cosmosAddr := sdk.AccAddress(addr.Bytes())
 
 	params := k.GetParams(ctx)
+
+	// Since spendable balances are fetched to get balances, when setting balances
+	// it should also compare with spendable coins as well to get the correct
+	// delta.
 	coin := k.bankKeeper.GetBalance(ctx, cosmosAddr, params.EvmDenom)
 	balance := coin.Amount.BigInt()
 	delta := new(big.Int).Sub(amount, balance)
@@ -131,10 +136,22 @@ func (k *Keeper) SetAccount(ctx sdk.Context, addr common.Address, account stated
 	}
 
 	codeHash := common.BytesToHash(account.CodeHash)
+	ethAcct, ok := acct.(ethermint.EthAccountI)
 
-	if ethAcct, ok := acct.(ethermint.EthAccountI); ok {
+	if ok {
 		if err := ethAcct.SetCodeHash(codeHash); err != nil {
 			return err
+		}
+	}
+
+	if !ok && account.IsContract() {
+		if baseAcct, isBaseAccount := acct.(*authtypes.BaseAccount); isBaseAccount {
+			acct = &ethermint.EthAccount{
+				BaseAccount: baseAcct,
+				CodeHash:    codeHash.Hex(),
+			}
+		} else {
+			return errorsmod.Wrapf(types.ErrInvalidAccount, "type %T, address %s", acct, addr)
 		}
 	}
 

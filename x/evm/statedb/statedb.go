@@ -481,6 +481,7 @@ func (s *StateDB) Commit() error {
 				}
 				s.keeper.SetState(s.ctx, obj.Address(), key, value.Bytes())
 			}
+
 		}
 	}
 	return nil

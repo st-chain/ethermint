@@ -323,6 +323,7 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context,
 	cfg *statedb.EVMConfig,
 	txConfig statedb.TxConfig,
 ) (*types.MsgEthereumTxResponse, error) {
+	k.Logger(ctx).Debug("ApplyMessageWithConfig commit:", commit)
 	var (
 		ret   []byte // return bytes from evm execution
 		vmErr error  // vm errors do not effect consensus and are therefore not assigned to err
